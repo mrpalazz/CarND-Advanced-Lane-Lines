@@ -20,7 +20,7 @@ from camera_calibration import calibrate_camera, distortion_correct
 from sobel_library import abs_sobel_image, sobel_mag_thresh, sobel_dir_thresh
 from collections import deque
 
-
+run_camera_cal = 1
 
 #HLS Color space threshold filter
 def color_binary(img, colorspace, color_thresh):
@@ -64,9 +64,12 @@ def warp(img,source_points, destination_points):
 
 
 global left_fit_deque
+global right_fit_deque
 deque_size = 5
 left_fit_deque = []
 left_fit_deque = deque(maxlen = deque_size)
+right_fit_deque = []
+right_fit_deque = deque(maxlen = deque_size)
 
 class Lane():
     
@@ -77,9 +80,12 @@ class Lane():
         
 mylane = Lane()   
 coeffs = []
-C0 = np.zeros(deque_size)
-C1 = np.zeros(deque_size)
-C2 = np.zeros(deque_size)
+C0_L = np.zeros(deque_size)
+C1_L = np.zeros(deque_size)
+C2_L = np.zeros(deque_size)
+C0_R = np.zeros(deque_size)
+C1_R = np.zeros(deque_size)
+C2_R = np.zeros(deque_size)
 
 
 def polyfit(warped_image, orig_img, Minv):
@@ -156,26 +162,50 @@ def polyfit(warped_image, orig_img, Minv):
 
     # Fit a second order polynomial to each
     left_fit = np.polyfit(lefty, leftx, 2)
+    #Store the left poly coefficient in a deque for later use
     left_fit_deque.append(left_fit)
     
     
+    # Take the deque of polynomial data and extract the three coefficients, avearge them for stability
     for idx, coeffs in enumerate(left_fit_deque):
-        C0[idx] = coeffs[0]
-        C1[idx] = coeffs[1]
-        C2[idx] = coeffs[2]
+        C0_L[idx] = coeffs[0]
+        C1_L[idx] = coeffs[1]
+        C2_L[idx] = coeffs[2]
         
         
-        
-        
-    average_CO = np.mean(C0)
-    average_C1 = np.mean(C1)
-    average_C2 = np.mean(C2)
-#    alpha = np.empty(1)
-#    alpha = np.zeros(1)
-        
-        
+           
+    average_C0_L = np.mean(C0_L)
+    average_C1_L = np.mean(C1_L)
+    average_C2_L = np.mean(C2_L)
+    
+    left_fit[0] = average_C0_L
+    left_fit[1] = average_C1_L
+    left_fit[2] = average_C2_L
+
+    
     
     right_fit = np.polyfit(righty, rightx, 2)
+        #Store the left poly coefficient in a deque for later use
+    right_fit_deque.append(right_fit)
+    
+    
+    # Take the deque of polynomial data and extract the three coefficients, avearge them for stability
+    for idx, coeffs in enumerate(right_fit_deque):
+        C0_R[idx] = coeffs[0]
+        C1_R[idx] = coeffs[1]
+        C2_R[idx] = coeffs[2]
+        
+        
+           
+    average_C0_R = np.mean(C0_R)
+    average_C1_R = np.mean(C1_R)
+    average_C2_R = np.mean(C2_R)
+    
+    right_fit[0] = average_C0_R
+    right_fit[1] = average_C1_R
+    right_fit[2] = average_C2_R
+
+
 
     # Generate x and y values for plotting
     ploty = np.linspace(0, warped_image.shape[0]-1, warped_image.shape[0] )
@@ -184,7 +214,7 @@ def polyfit(warped_image, orig_img, Minv):
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
 
     out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
-    out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
+    out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 255, 255]
    
     
 #    plt.figure(figsize = (20,10))
@@ -310,63 +340,64 @@ def polyfit(warped_image, orig_img, Minv):
 
     
 
+if run_camera_cal == 1:
     
-#--------------------- CAll functions and initiate camera cal and distortion corrrect-----------------------
-
-#This section calls the camera calibration function
-
-# Call the function to parse through the calibration image array and return
-    #the base object point, corners and a grascale image for reference size
-
-
-#***** TURN THIS ON LATER!!!!!! when you want to calibrate the camera
+    #--------------------- CAll functions and initiate camera cal and distortion corrrect-----------------------
     
-# Make a list of calibration images
-image_dir = "C:\\Users\\mrpal\\Documents\\Projects\\Lane-Tracking\\camera_cal\\"
-images = os.listdir('camera_cal') 
-   
-corners, imgpoints, objpoints, gray = calibrate_camera(image_dir, images)
-
-##Generate the distortion coefficients and camera matrix, trans vector and rot vector
-print('Generating distortion coefficients and camera matrix parameters')
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints,gray.shape[::-1], None, None)
-
-
-#Undistort the images in the test_images folder
-image_dir = "C:\\Users\\mrpal\\Documents\\Projects\\Lane-Tracking\\test_images\\"
-images = os.listdir('test_images')
-print('Selected image directory is: {} '.format(image_dir))
-print('The images in the directory are: {}' .format(images))
-distortion_corrected = distortion_correct(image_dir, images, mtx, dist)
-cv2.destroyAllWindows()
-
-
-#--------------------- CAll functions to initiate a pipeline for image processing----------------------
-
-image_dir = "C:\\Users\\mrpal\\Documents\\Projects\\Lane-Tracking\\test_images\\"
-images = os.listdir('test_images')
-
-
-print('Selected image directory is: {} '.format(image_dir))
-print('The images in the directory are: {} \n' .format(images))
-#print('The images in the directory are: {} \n' .format(images_new))
-
-sobel_kernel = 9
-#mag_thresh = [30,255]
-
-
-#keep it
-grad_threshold = [50,150]
-sobel_mag = [0,255]
-
-
-
-#distortion correct
-if len(glob.glob('./test_images/*Distortion*.jpg')) == 0:
-    print('there are no distortion corrected images in the directory, let us create them')
+    #This section calls the camera calibration function
+    
+    # Call the function to parse through the calibration image array and return
+        #the base object point, corners and a grascale image for reference size
+    
+    
+    #***** TURN THIS ON LATER!!!!!! when you want to calibrate the camera
+        
+    # Make a list of calibration images
+    image_dir = "C:\\Users\\mrpal\\Documents\\Projects\\CarND-Advanced-Lane-Lines\\camera_cal\\"
+    images = os.listdir('camera_cal') 
+       
+    corners, imgpoints, objpoints, gray = calibrate_camera(image_dir, images)
+    
+    ##Generate the distortion coefficients and camera matrix, trans vector and rot vector
+    print('Generating distortion coefficients and camera matrix parameters')
+    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints,gray.shape[::-1], None, None)
+    
+    
+    #Undistort the images in the test_images folder
+    image_dir = "C:\\Users\\mrpal\\Documents\\Projects\\CarND-Advanced-Lane-Lines\\test_images\\"
+    images = os.listdir('test_images')
+    print('Selected image directory is: {} '.format(image_dir))
+    print('The images in the directory are: {}' .format(images))
     distortion_corrected = distortion_correct(image_dir, images, mtx, dist)
-
-images = glob.glob('./test_images/*Distortion*.jpg')
+    cv2.destroyAllWindows()
+    
+    
+    #--------------------- CAll functions to initiate a pipeline for image processing----------------------
+    
+    image_dir = "C:\\Users\\mrpal\\Documents\\Projects\\CarND-Advanced-Lane-Lines\\test_images\\"
+    images = os.listdir('test_images')
+    
+    
+    print('Selected image directory is: {} '.format(image_dir))
+    print('The images in the directory are: {} \n' .format(images))
+    #print('The images in the directory are: {} \n' .format(images_new))
+    
+    sobel_kernel = 9
+    #mag_thresh = [30,255]
+    
+    
+    #keep it
+    grad_threshold = [50,150]
+    sobel_mag = [0,255]
+    
+    
+    
+    #distortion correct
+    if len(glob.glob('./test_images/*Distortion*.jpg')) == 0:
+        print('there are no distortion corrected images in the directory, let us create them')
+        distortion_corrected = distortion_correct(image_dir, images, mtx, dist)
+    
+    images = glob.glob('./test_images/*Distortion*.jpg')
 
 
 
@@ -476,7 +507,7 @@ def process_image(images):
 ##os.system("ffmpeg -i project_video.mp4 -vf fps=15/1 out_%03d.jpg'
 Test_Video_dir = os.listdir("test_videos/")
 video_output = 'project_video_output.mp4'
-clip1 = VideoFileClip("test_videos/project_video.mp4").subclip(5,7)
+clip1 = VideoFileClip("test_videos/project_video.mp4").subclip(0,5)
 #clip1 = VideoFileClip("test_videos/project_video.mp4")
 clip = clip1.fl_image(process_image) #NOTE: this function expects color images!!
 clip.write_videofile(video_output, audio=False)
