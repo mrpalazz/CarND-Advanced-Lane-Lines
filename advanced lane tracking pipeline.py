@@ -65,7 +65,7 @@ def warp(img,source_points, destination_points):
 
 global left_fit_deque
 global right_fit_deque
-deque_size = 5
+deque_size = 3
 left_fit_deque = []
 left_fit_deque = deque(maxlen = deque_size)
 right_fit_deque = []
@@ -214,7 +214,7 @@ def polyfit(warped_image, orig_img, Minv):
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
 
     out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
-    out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 255, 255]
+    out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
    
     
 #    plt.figure(figsize = (20,10))
@@ -507,8 +507,8 @@ def process_image(images):
 ##os.system("ffmpeg -i project_video.mp4 -vf fps=15/1 out_%03d.jpg'
 Test_Video_dir = os.listdir("test_videos/")
 video_output = 'project_video_output.mp4'
-clip1 = VideoFileClip("test_videos/project_video.mp4").subclip(0,5)
-#clip1 = VideoFileClip("test_videos/project_video.mp4")
+clip1 = VideoFileClip("test_videos/project_video.mp4").subclip(13,18)
+#clip1 = VideoFileClip("test_videos/project_video.mp4")  
 clip = clip1.fl_image(process_image) #NOTE: this function expects color images!!
 clip.write_videofile(video_output, audio=False)
   #-------------------------------------------  
